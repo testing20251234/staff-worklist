@@ -228,7 +228,7 @@ const SUPABASE_URL = 'https://xtcpxsbamlsyvbqgheia.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0Y3B4c2JhbWxzeXZicWdoZWlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NjE4MTgsImV4cCI6MjA5MDUzNzgxOH0.2FxjCddwo6dZTT_hppNWY41MwMw8Lfdg6RhtKNYC-jI';
 // ═══════════════════════════════════════
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let currentFilter = 'pending';
 let payments = [];
@@ -245,7 +245,7 @@ async function handleLogin() {
   btn.disabled = true;
   btn.textContent = 'Signing in...';
 
-  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
 
   if (error) {
     showMsg(error.message, 'error');
@@ -258,7 +258,7 @@ async function handleLogin() {
 }
 
 async function handleLogout() {
-  await supabase.auth.signOut();
+  await sb.auth.signOut();
   document.getElementById('auth-screen').style.display = 'flex';
   document.getElementById('app-screen').style.display = 'none';
 }
@@ -272,7 +272,7 @@ function showMsg(text, type) {
 
 // Check existing session on load
 async function checkSession() {
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { session } } = await sb.auth.getSession();
   if (session) {
     showApp(session.user);
   }
@@ -287,7 +287,7 @@ function showApp(user) {
 
 // ═══════ DATA ═══════
 async function loadPayments() {
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from('payments')
     .select('*')
     .order('created_at', { ascending: false });
@@ -305,7 +305,7 @@ async function loadPayments() {
 
 async function toggleDone(id, currentState) {
   const newState = !currentState;
-  const { error } = await supabase
+  const { error } = await sb
     .from('payments')
     .update({ added_to_hapana: newState, updated_at: new Date().toISOString() })
     .eq('id', id);
@@ -319,7 +319,7 @@ async function toggleDone(id, currentState) {
 }
 
 async function updateNotes(id, notes) {
-  await supabase
+  await sb
     .from('payments')
     .update({ notes: notes, updated_at: new Date().toISOString() })
     .eq('id', id);
@@ -408,7 +408,7 @@ function esc(str) {
 }
 
 // ═══════ REALTIME ═══════
-supabase
+sb
   .channel('payments-changes')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
     loadPayments();
