@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Payment Worklist — Staff</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface-2: #232735;
+  --surface-3: #2a2e3d;
+  --border: #2e3345;
+  --border-hover: #4a4f68;
+  --text: #e8eaf0;
+  --text-dim: #8a8fa8;
+  --text-muted: #5a5f78;
+  --accent: #7c6cf0;
+  --accent-dim: rgba(124,108,240,0.15);
+  --green: #34d399;
+  --green-dim: rgba(52,211,153,0.12);
+  --amber: #f59e0b;
+  --amber-dim: rgba(245,158,11,0.12);
+  --red: #ef4444;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg); color: var(--text);
+  line-height: 1.5; min-height: 100vh;
+}
+
+/* ═══════ AUTH SCREEN ═══════ */
+.auth-screen {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 100vh; padding: 2rem;
+}
+.auth-box {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 16px; padding: 2rem; width: 100%; max-width: 380px;
+  text-align: center;
+}
+.auth-box h1 { font-size: 1.2rem; font-weight: 800; margin-bottom: 0.3rem; }
+.auth-box .sub { color: var(--text-dim); font-size: 0.78rem; margin-bottom: 1.5rem; }
+.auth-input {
+  width: 100%; padding: 0.7rem 1rem; border-radius: 10px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text); font-size: 0.85rem; margin-bottom: 0.6rem;
+  outline: none; transition: border-color 0.15s;
+}
+.auth-input:focus { border-color: var(--accent); }
+.auth-btn {
+  width: 100%; padding: 0.7rem 1rem; border-radius: 10px;
+  background: var(--accent); border: none; color: #fff;
+  font-size: 0.85rem; font-weight: 700; cursor: pointer;
+  transition: opacity 0.15s;
+}
+.auth-btn:hover { opacity: 0.9; }
+.auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.auth-msg {
+  font-size: 0.75rem; margin-top: 0.8rem; padding: 0.5rem;
+  border-radius: 8px;
+}
+.auth-msg.success { background: var(--green-dim); color: var(--green); }
+.auth-msg.error { background: rgba(239,68,68,0.12); color: var(--red); }
+
+/* ═══════ APP SCREEN ═══════ */
+.app-screen { display: none; padding: 1.5rem; max-width: 900px; margin: 0 auto; }
+
+.app-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 1.5rem; flex-wrap: wrap; gap: 0.5rem;
+}
+.app-header h1 { font-size: 1.2rem; font-weight: 800; }
+.app-header .user-info {
+  display: flex; align-items: center; gap: 0.6rem;
+  font-size: 0.75rem; color: var(--text-dim);
+}
+.logout-btn {
+  padding: 0.3rem 0.7rem; border-radius: 6px;
+  background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--text-dim); font-size: 0.7rem; cursor: pointer;
+}
+.logout-btn:hover { color: var(--text); border-color: var(--border-hover); }
+
+/* Stats bar */
+.stats-bar {
+  display: flex; gap: 0.8rem; margin-bottom: 1.5rem; flex-wrap: wrap;
+}
+.stat {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.6rem 1rem; flex: 1; min-width: 120px;
+}
+.stat .stat-num { font-size: 1.3rem; font-weight: 800; }
+.stat .stat-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.stat.pending .stat-num { color: var(--amber); }
+.stat.done .stat-num { color: var(--green); }
+.stat.total .stat-num { color: var(--text-dim); }
+
+/* Filter tabs */
+.filter-bar {
+  display: flex; gap: 0.3rem; margin-bottom: 1rem;
+}
+.filter-btn {
+  padding: 0.4rem 0.9rem; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text-dim); font-size: 0.75rem; font-weight: 600;
+  cursor: pointer; transition: all 0.12s;
+}
+.filter-btn:hover { color: var(--text); }
+.filter-btn.active { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+
+/* Table */
+.worklist { width: 100%; border-collapse: collapse; }
+.worklist th {
+  text-align: left; font-size: 0.68rem; font-weight: 700;
+  color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 0.5rem 0.7rem; border-bottom: 1px solid var(--border);
+}
+.worklist td {
+  font-size: 0.82rem; padding: 0.65rem 0.7rem;
+  border-bottom: 1px solid rgba(46,51,69,0.4);
+  vertical-align: middle;
+}
+.worklist tr:hover td { background: var(--surface); }
+.worklist tr.completed td { opacity: 0.35; }
+.worklist tr.completed .cell-name { text-decoration: line-through; }
+.worklist .cell-package {
+  font-weight: 600; font-size: 0.78rem;
+}
+.worklist .cell-amount { font-weight: 700; color: var(--accent); }
+.worklist .cell-date { color: var(--text-dim); font-size: 0.75rem; }
+
+/* Checkbox */
+.tick-btn {
+  width: 28px; height: 28px; border-radius: 8px;
+  border: 2px solid var(--border-hover); background: transparent;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; color: transparent; font-size: 0.8rem;
+}
+.tick-btn:hover { border-color: var(--green); background: var(--green-dim); }
+.tick-btn.done {
+  background: var(--green); border-color: var(--green); color: #fff;
+}
+
+/* Notes input */
+.notes-input {
+  background: transparent; border: 1px solid transparent;
+  color: var(--text-dim); font-size: 0.75rem; padding: 0.2rem 0.4rem;
+  border-radius: 5px; width: 100%; max-width: 150px;
+  outline: none; transition: all 0.15s;
+}
+.notes-input:focus { border-color: var(--border-hover); background: var(--surface-2); }
+.notes-input::placeholder { color: var(--text-muted); }
+
+/* Empty state */
+.empty-state {
+  text-align: center; padding: 3rem 1rem;
+  color: var(--text-muted); font-size: 0.85rem;
+}
+
+/* Loading */
+.loading { text-align: center; padding: 2rem; color: var(--text-muted); }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .worklist { font-size: 0.75rem; }
+  .worklist th, .worklist td { padding: 0.4rem; }
+  .notes-input { max-width: 80px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ AUTH SCREEN ═══════ -->
+<div class="auth-screen" id="auth-screen">
+  <div class="auth-box">
+    <h1>Staff Worklist</h1>
+    <div class="sub">House Longevity — Payment Processing</div>
+    <input class="auth-input" type="email" id="auth-email" placeholder="Staff email" />
+    <input class="auth-input" type="password" id="auth-password" placeholder="Password" onkeydown="if(event.key==='Enter')handleLogin()" />
+    <button class="auth-btn" id="auth-btn" onclick="handleLogin()">Sign In</button>
+    <div class="auth-msg" id="auth-msg" style="display:none;"></div>
+  </div>
+</div>
+
+<!-- ═══════ APP SCREEN ═══════ -->
+<div class="app-screen" id="app-screen">
+  <div class="app-header">
+    <h1>Payment Worklist</h1>
+    <div class="user-info">
+      <span id="user-email"></span>
+      <button class="logout-btn" onclick="handleLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat pending">
+      <div class="stat-num" id="stat-pending">-</div>
+      <div class="stat-label">Pending</div>
+    </div>
+    <div class="stat done">
+      <div class="stat-num" id="stat-done">-</div>
+      <div class="stat-label">Done</div>
+    </div>
+    <div class="stat total">
+      <div class="stat-num" id="stat-total">-</div>
+      <div class="stat-label">Total</div>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="setFilter('pending', this)">Pending</button>
+    <button class="filter-btn" onclick="setFilter('done', this)">Done</button>
+    <button class="filter-btn" onclick="setFilter('all', this)">All</button>
+  </div>
+
+  <div id="table-container">
+    <div class="loading">Loading...</div>
+  </div>
+</div>
+
+<!-- ═══════ SUPABASE CLIENT ═══════ -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ═══════ CONFIG — REPLACE THESE ═══════
+const SUPABASE_URL = 'https://xtcpxsbamlsyvbqgheia.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh0Y3B4c2JhbWxzeXZicWdoZWlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5NjE4MTgsImV4cCI6MjA5MDUzNzgxOH0.2FxjCddwo6dZTT_hppNWY41MwMw8Lfdg6RhtKNYC-jI';
+// ═══════════════════════════════════════
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let currentFilter = 'pending';
+let payments = [];
+
+// ═══════ AUTH ═══════
+async function handleLogin() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const btn = document.getElementById('auth-btn');
+  const msg = document.getElementById('auth-msg');
+
+  if (!email || !password) { showMsg('Enter email and password', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    showMsg(error.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+    return;
+  }
+
+  showApp(data.user);
+}
+
+async function handleLogout() {
+  await supabase.auth.signOut();
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+}
+
+function showMsg(text, type) {
+  const msg = document.getElementById('auth-msg');
+  msg.textContent = text;
+  msg.className = 'auth-msg ' + type;
+  msg.style.display = 'block';
+}
+
+// Check existing session on load
+async function checkSession() {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session) {
+    showApp(session.user);
+  }
+}
+
+function showApp(user) {
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  document.getElementById('user-email').textContent = user.email;
+  loadPayments();
+}
+
+// ═══════ DATA ═══════
+async function loadPayments() {
+  const { data, error } = await supabase
+    .from('payments')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    document.getElementById('table-container').innerHTML =
+      '<div class="empty-state">Error loading data: ' + error.message + '</div>';
+    return;
+  }
+
+  payments = data || [];
+  updateStats();
+  renderTable();
+}
+
+async function toggleDone(id, currentState) {
+  const newState = !currentState;
+  const { error } = await supabase
+    .from('payments')
+    .update({ added_to_hapana: newState, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (!error) {
+    const p = payments.find(p => p.id === id);
+    if (p) p.added_to_hapana = newState;
+    updateStats();
+    renderTable();
+  }
+}
+
+async function updateNotes(id, notes) {
+  await supabase
+    .from('payments')
+    .update({ notes: notes, updated_at: new Date().toISOString() })
+    .eq('id', id);
+}
+
+// Debounce for notes
+let noteTimers = {};
+function handleNoteChange(id, value) {
+  clearTimeout(noteTimers[id]);
+  noteTimers[id] = setTimeout(() => updateNotes(id, value), 800);
+}
+
+// ═══════ RENDER ═══════
+function updateStats() {
+  const pending = payments.filter(p => !p.added_to_hapana).length;
+  const done = payments.filter(p => p.added_to_hapana).length;
+  document.getElementById('stat-pending').textContent = pending;
+  document.getElementById('stat-done').textContent = done;
+  document.getElementById('stat-total').textContent = payments.length;
+}
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function renderTable() {
+  let filtered = payments;
+  if (currentFilter === 'pending') filtered = payments.filter(p => !p.added_to_hapana);
+  if (currentFilter === 'done') filtered = payments.filter(p => p.added_to_hapana);
+
+  if (filtered.length === 0) {
+    document.getElementById('table-container').innerHTML =
+      '<div class="empty-state">No ' + currentFilter + ' payments</div>';
+    return;
+  }
+
+  let html = `
+    <table class="worklist">
+      <thead>
+        <tr>
+          <th></th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Package</th>
+          <th>Amount</th>
+          <th>Date</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  filtered.forEach(p => {
+    const doneClass = p.added_to_hapana ? 'completed' : '';
+    const btnClass = p.added_to_hapana ? 'done' : '';
+    const date = p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-SG', {
+      day: 'numeric', month: 'short', year: 'numeric'
+    }) : '-';
+
+    html += `
+      <tr class="${doneClass}">
+        <td><button class="tick-btn ${btnClass}" onclick="toggleDone('${p.id}', ${p.added_to_hapana})">✓</button></td>
+        <td class="cell-name">${esc(p.customer_name || '-')}</td>
+        <td>${esc(p.customer_email || '-')}</td>
+        <td class="cell-package">${esc(p.package_name || '-')}</td>
+        <td class="cell-amount">$${p.amount ? Number(p.amount).toFixed(0) : '-'}</td>
+        <td class="cell-date">${date}</td>
+        <td><input class="notes-input" placeholder="Add note..."
+            value="${esc(p.notes || '')}"
+            oninput="handleNoteChange('${p.id}', this.value)" /></td>
+      </tr>
+    `;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('table-container').innerHTML = html;
+}
+
+function esc(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// ═══════ REALTIME ═══════
+supabase
+  .channel('payments-changes')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+    loadPayments();
+  })
+  .subscribe();
+
+// ═══════ INIT ═══════
+// Check if Supabase loaded
+if (typeof window.supabase === 'undefined') {
+  document.getElementById('auth-msg').textContent = 'Error: Supabase library failed to load. Try opening via a local server.';
+  document.getElementById('auth-msg').className = 'auth-msg error';
+  document.getElementById('auth-msg').style.display = 'block';
+} else {
+  checkSession();
+}
+</script>
+
+</body>
+</html>
