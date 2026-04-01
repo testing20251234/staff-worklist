@@ -153,6 +153,40 @@ body {
 .notes-input:focus { border-color: var(--border-hover); background: var(--surface-2); }
 .notes-input::placeholder { color: var(--text-muted); }
 
+/* Search bar */
+.search-container { display: none; }
+.search-container.active { display: block; }
+.search-bar {
+  display: flex; gap: 0.5rem; margin-bottom: 1.2rem;
+}
+.search-input {
+  flex: 1; padding: 0.65rem 1rem; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  color: var(--text); font-size: 0.85rem; outline: none;
+  transition: border-color 0.15s;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--text-muted); }
+.search-btn {
+  padding: 0.65rem 1.2rem; border-radius: 10px;
+  background: var(--accent); border: none; color: #fff;
+  font-size: 0.82rem; font-weight: 700; cursor: pointer;
+  transition: opacity 0.15s; white-space: nowrap;
+}
+.search-btn:hover { opacity: 0.9; }
+.search-hint {
+  font-size: 0.7rem; color: var(--text-muted); margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* Status badge */
+.status-badge {
+  display: inline-block; padding: 0.1rem 0.45rem; border-radius: 4px;
+  font-size: 0.65rem; font-weight: 700;
+}
+.status-badge.processed { background: var(--green-dim); color: var(--green); }
+.status-badge.pending { background: var(--amber-dim); color: var(--amber); }
+
 /* Empty state */
 .empty-state {
   text-align: center; padding: 3rem 1rem;
@@ -213,10 +247,21 @@ body {
     <button class="filter-btn active" onclick="setFilter('pending', this)">Pending</button>
     <button class="filter-btn" onclick="setFilter('done', this)">Done</button>
     <button class="filter-btn" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('search', this)">Search</button>
   </div>
 
   <div id="table-container">
     <div class="loading">Loading...</div>
+  </div>
+
+  <div class="search-container" id="search-container">
+    <div class="search-bar">
+      <input class="search-input" id="search-input" placeholder="Search by name, email, or date (e.g. 1 Apr 2026)..." onkeydown="if(event.key==='Enter')handleSearch()" />
+      <button class="search-btn" onclick="handleSearch()">Search</button>
+    </div>
+    <div id="search-results">
+      <div class="search-hint">Enter a name, email address, or date to find a payment record.</div>
+    </div>
   </div>
 </div>
 
@@ -345,7 +390,128 @@ function setFilter(filter, btn) {
   currentFilter = filter;
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  renderTable();
+
+  // Toggle between table and search views
+  if (filter === 'search') {
+    document.getElementById('table-container').style.display = 'none';
+    document.getElementById('search-container').classList.add('active');
+    document.getElementById('search-input').focus();
+  } else {
+    document.getElementById('table-container').style.display = 'block';
+    document.getElementById('search-container').classList.remove('active');
+    renderTable();
+  }
+}
+
+// ═══════ SEARCH ═══════
+async function handleSearch() {
+  const query = document.getElementById('search-input').value.trim();
+  if (!query) {
+    document.getElementById('search-results').innerHTML =
+      '<div class="search-hint">Enter a name, email address, or date to find a payment record.</div>';
+    return;
+  }
+
+  document.getElementById('search-results').innerHTML = '<div class="loading">Searching...</div>';
+
+  // Try date parsing
+  let dateFilter = null;
+  const parsed = Date.parse(query);
+  if (!isNaN(parsed)) {
+    const d = new Date(parsed);
+    const start = d.toISOString().split('T')[0] + 'T00:00:00';
+    const end = d.toISOString().split('T')[0] + 'T23:59:59';
+    dateFilter = { start, end };
+  }
+
+  // Search by name or email (case insensitive)
+  let results = [];
+
+  const { data: nameResults } = await sb
+    .from('payments')
+    .select('*')
+    .ilike('customer_name', '%' + query + '%')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  const { data: emailResults } = await sb
+    .from('payments')
+    .select('*')
+    .ilike('customer_email', '%' + query + '%')
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  // Merge and deduplicate
+  const seen = new Set();
+  [...(nameResults || []), ...(emailResults || [])].forEach(r => {
+    if (!seen.has(r.id)) { seen.add(r.id); results.push(r); }
+  });
+
+  // Date search
+  if (dateFilter) {
+    const { data: dateResults } = await sb
+      .from('payments')
+      .select('*')
+      .gte('payment_date', dateFilter.start)
+      .lte('payment_date', dateFilter.end)
+      .order('created_at', { ascending: false })
+      .limit(20);
+
+    (dateResults || []).forEach(r => {
+      if (!seen.has(r.id)) { seen.add(r.id); results.push(r); }
+    });
+  }
+
+  renderSearchResults(results, query);
+}
+
+function renderSearchResults(results, query) {
+  if (results.length === 0) {
+    document.getElementById('search-results').innerHTML =
+      '<div class="empty-state">No results for "' + esc(query) + '"</div>';
+    return;
+  }
+
+  let html = `
+    <div class="search-hint">${results.length} result${results.length !== 1 ? 's' : ''} for "${esc(query)}"</div>
+    <table class="worklist">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Package</th>
+          <th>Amount</th>
+          <th>Date</th>
+          <th>Notes</th>
+        </tr>
+      </thead>
+      <tbody>
+  `;
+
+  results.forEach(p => {
+    const date = p.payment_date ? new Date(p.payment_date).toLocaleDateString('en-SG', {
+      day: 'numeric', month: 'short', year: 'numeric'
+    }) : '-';
+    let displayAmount = p.amount ? Number(p.amount) / 100 : 0;
+    const statusClass = p.added_to_hapana ? 'processed' : 'pending';
+    const statusText = p.added_to_hapana ? 'Done' : 'Pending';
+
+    html += `
+      <tr>
+        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+        <td class="cell-name">${esc(p.customer_name || '-')}</td>
+        <td>${esc(p.customer_email || '-')}</td>
+        <td class="cell-package">${esc(p.package_name || '-')}</td>
+        <td class="cell-amount">$${displayAmount ? displayAmount.toFixed(2) : '-'}</td>
+        <td class="cell-date">${date}</td>
+        <td>${esc(p.notes || '-')}</td>
+      </tr>
+    `;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('search-results').innerHTML = html;
 }
 
 function renderTable() {
