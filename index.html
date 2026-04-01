@@ -382,13 +382,17 @@ function renderTable() {
       day: 'numeric', month: 'short', year: 'numeric'
     }) : '-';
 
+    // Handle cents: if amount > 500, it's likely in cents (Stripe sends 9900 for $99)
+    let displayAmount = p.amount ? Number(p.amount) : 0;
+    if (displayAmount > 500) displayAmount = displayAmount / 100;
+
     html += `
       <tr class="${doneClass}">
         <td><button class="tick-btn ${btnClass}" onclick="toggleDone('${p.id}', ${p.added_to_hapana})">✓</button></td>
         <td class="cell-name">${esc(p.customer_name || '-')}</td>
         <td>${esc(p.customer_email || '-')}</td>
         <td class="cell-package">${esc(p.package_name || '-')}</td>
-        <td class="cell-amount">$${p.amount ? Number(p.amount).toFixed(0) : '-'}</td>
+        <td class="cell-amount">$${displayAmount ? displayAmount.toFixed(0) : '-'}</td>
         <td class="cell-date">${date}</td>
         <td><input class="notes-input" placeholder="Add note..."
             value="${esc(p.notes || '')}"
