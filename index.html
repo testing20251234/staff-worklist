@@ -233,20 +233,10 @@ body {
       <div class="stat-num" id="stat-pending">-</div>
       <div class="stat-label">Pending</div>
     </div>
-    <div class="stat done">
-      <div class="stat-num" id="stat-done">-</div>
-      <div class="stat-label">Done</div>
-    </div>
-    <div class="stat total">
-      <div class="stat-num" id="stat-total">-</div>
-      <div class="stat-label">Total</div>
-    </div>
   </div>
 
   <div class="filter-bar">
     <button class="filter-btn active" onclick="setFilter('pending', this)">Pending</button>
-    <button class="filter-btn" onclick="setFilter('done', this)">Done</button>
-    <button class="filter-btn" onclick="setFilter('all', this)">All</button>
     <button class="filter-btn" onclick="setFilter('search', this)">Search</button>
   </div>
 
@@ -335,6 +325,7 @@ async function loadPayments() {
   const { data, error } = await sb
     .from('payments')
     .select('*')
+    .eq('added_to_hapana', false)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -380,10 +371,7 @@ function handleNoteChange(id, value) {
 // ═══════ RENDER ═══════
 function updateStats() {
   const pending = payments.filter(p => !p.added_to_hapana).length;
-  const done = payments.filter(p => p.added_to_hapana).length;
   document.getElementById('stat-pending').textContent = pending;
-  document.getElementById('stat-done').textContent = done;
-  document.getElementById('stat-total').textContent = payments.length;
 }
 
 function setFilter(filter, btn) {
@@ -516,12 +504,10 @@ function renderSearchResults(results, query) {
 
 function renderTable() {
   let filtered = payments;
-  if (currentFilter === 'pending') filtered = payments.filter(p => !p.added_to_hapana);
-  if (currentFilter === 'done') filtered = payments.filter(p => p.added_to_hapana);
 
   if (filtered.length === 0) {
     document.getElementById('table-container').innerHTML =
-      '<div class="empty-state">No ' + currentFilter + ' payments</div>';
+      '<div class="empty-state">No pending payments</div>';
     return;
   }
 
